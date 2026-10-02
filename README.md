@@ -1,5 +1,7 @@
 # Jev SQL Agent Router
 
+[![CI](https://github.com/suniljavadi/jev-sql-agent-router/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/suniljavadi/jev-sql-agent-router/actions/workflows/ci.yml)
+
 A runnable SQL assistant combining an LLM proposal with a separate Jev decision layer. Local mode runs without credentials or external services using deterministic mock providers and seeded SQLite data. This repository demonstrates an **application-owned Jev adapter**; it does not assert that the sample JSON matches an official TypeSafe API schema.
 
 ## What Jev does
