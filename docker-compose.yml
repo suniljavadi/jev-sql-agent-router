@@ -25,8 +25,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-jev_agent}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-jev_agent}
       JEV_PROVIDER: ${JEV_PROVIDER:-mock}
-      JEV_BASE_URL: ${JEV_BASE_URL:-}
-      JEV_MODEL: ${JEV_MODEL:-}
+      JEV_BASE_URL: ${JEV_BASE_URL:-https://api.typesafe.ai/v1/systemone}
+      JEV_MODEL: ${JEV_MODEL:-jev-latest}
       TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       LLM_BASE_URL: ${LLM_BASE_URL:-}

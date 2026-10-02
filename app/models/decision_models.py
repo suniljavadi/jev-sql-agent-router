@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -34,3 +35,20 @@ class JevDecision(BaseModel):
         if any(getattr(self, name) != value for name, value in expected.items()):
             raise ValueError("Decision flags contradict selected_action")
         return self
+
+
+class TypeSafeChoiceAnswer(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    type: Literal["choice"]
+    choice: str
+    confidence: float = Field(ge=0, le=1)
+    probabilities: dict[str, float]
+
+
+class TypeSafeSystemOneResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    model: str
+    answers: dict[str, TypeSafeChoiceAnswer]
+    usage: dict[str, int | None] | None = None

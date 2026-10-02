@@ -1,6 +1,28 @@
 # Jev decision flow
 
-The mock is deterministic development behavior, not a substitute for TypeSafe's model. The `typesafe` adapter POSTs to `JEV_BASE_URL` with a bearer key and JSON fields `model`, `application_state`, `user_request`, `available_actions`, `decision_questions`. It validates the JSON response as `JevDecision`. **This is an application-owned adapter contract, not a claim about the official Jev API.** Confirm the vendor's URL, authentication, payload and response schema before connecting a live account; change only the adapter when necessary.
+The mock is deterministic development behavior, not a substitute for TypeSafe's model. The `typesafe` adapter follows the official [System One API](https://docs.typesafe.ai/api): it POSTs to `https://api.typesafe.ai/v1/systemone` with `Authorization: Bearer TYPESAFE_API_KEY` and JSON containing `state`, `model`, and `questions`. The `selected_action` question is a Choice over the app's allowed actions. TypeSafe returns `answers.selected_action.choice`, `confidence`, and `probabilities`; the adapter validates that shape and maps the selected action into the application's typed decision model.
+
+The outbound request includes generated SQL, user request, security validation and available actions inside the structured `state`. A concise question instruction explains when each action applies; Choice criteria define the actions. The `JEV_BASE_URL` and `JEV_MODEL` settings allow configuring the documented endpoint and model alias without changing code.
+
+```json
+{
+	"state": {
+		"application_state": {"generated_sql": "SELECT COUNT(*) FROM customers", "security": "passed"},
+		"user_request": "Count customers",
+		"available_actions": ["execute_sql", "retry", "ask_clarification", "reject", "human_review", "select_tool"]
+	},
+	"model": "jev-latest",
+	"questions": {
+		"selected_action": {
+			"type": "choice",
+			"instructions": "Choose the single best next application action from the listed options.",
+			"criteria": {"execute_sql": "Run the generated SQL only when the request is clear and the precheck allows it."}
+		}
+	}
+}
+```
+
+The Choice `criteria` map contains all six actions in a real request. A response has a `model`, an `answers` map keyed by question ID, and usage metadata; each Choice answer includes `choice`, `confidence`, and a probability distribution. The adapter does not treat a Jev choice as SQL authorization: the existing router threshold and SQL security validation still run before execution.
 
 | Proposed action | Router outcome |
 | --- | --- |

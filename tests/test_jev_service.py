@@ -5,7 +5,7 @@ import pytest
 
 from app.core.config import Settings
 from app.core.exceptions import ProviderError
-from app.services.jev_service import ACTIONS, QUESTIONS, MockJevProvider, TypeSafeJevProvider
+from app.services.jev_service import ACTION_CRITERIA, ACTIONS, MockJevProvider, TypeSafeJevProvider
 
 
 @pytest.mark.parametrize("user_text,action", [
@@ -24,7 +24,9 @@ def test_typesafe_fail_closed(failure):
             raise httpx.ReadTimeout("timed out")
         if failure == "http":
             return httpx.Response(503)
-        return httpx.Response(200, json={"selected_action": "execute_sql", "confidence": "bad"})
+        return httpx.Response(200, json={"model": "jev-1.13.0", "answers": {
+            "selected_action": {"type": "choice", "choice": "execute_sql", "confidence": "bad",
+                                "probabilities": {"execute_sql": 1.0}}}, "usage": {}})
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
@@ -36,22 +38,49 @@ def test_typesafe_fail_closed(failure):
     asyncio.run(run())
 
 
-def test_typesafe_payload_and_decision():
+def test_typesafe_official_payload_and_decision():
     def handler(request):
         import json
         payload = json.loads(request.content)
-        assert payload["application_state"]["generated_sql"] == "SELECT 1"
-        assert payload["user_request"] == "count"
-        assert payload["available_actions"] == ACTIONS
-        assert payload["decision_questions"] == QUESTIONS
-        return httpx.Response(200, json={"selected_action": "execute_sql", "confidence": 0.96,
-            "reason": "safe", "should_execute": True})
+        assert str(request.url) == "https://api.typesafe.ai/v1/systemone"
+        assert request.headers["Authorization"] == "Bearer test-key"
+        assert payload["state"]["application_state"]["generated_sql"] == "SELECT 1"
+        assert payload["state"]["user_request"] == "count"
+        assert payload["state"]["available_actions"] == ACTIONS
+        assert payload["model"] == "jev-latest"
+        assert payload["questions"]["selected_action"]["type"] == "choice"
+        assert payload["questions"]["selected_action"]["criteria"] == ACTION_CRITERIA
+        return httpx.Response(200, json={"model": "jev-1.13.0", "answers": {
+            "selected_action": {"type": "choice", "choice": "execute_sql", "confidence": 0.96,
+                                "probabilities": {action: float(action == "execute_sql") for action in ACTIONS}}},
+            "usage": {"input_tokens": 42, "output_tokens": 5}})
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            provider = TypeSafeJevProvider(Settings(jev_base_url="https://example.test/decide",
-                jev_model="configured-model", typesafe_api_key="test-key"), client)
-            assert (await provider.decide("count", {"generated_sql": "SELECT 1"})).confidence == 0.96
+            provider = TypeSafeJevProvider(Settings(typesafe_api_key="test-key"), client)
+            result = await provider.decide("count", {"generated_sql": "SELECT 1"})
+            assert result.selected_action.value == "execute_sql"
+            assert result.confidence == 0.96
+            assert result.should_execute is True
+
+    asyncio.run(run())
+
+
+def test_typesafe_maps_human_review_answer():
+    def handler(request):
+        import json
+        payload = json.loads(request.content)
+        return httpx.Response(200, json={"model": "jev-1.13.0", "answers": {
+            "selected_action": {"type": "choice", "choice": "human_review", "confidence": 0.91,
+                                "probabilities": {action: float(action == "human_review") for action in ACTIONS}}},
+            "usage": {"input_tokens": 42, "output_tokens": 5}})
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            provider = TypeSafeJevProvider(Settings(typesafe_api_key="test-key"), client)
+            result = await provider.decide("uncertain request", {})
+            assert result.selected_action.value == "human_review"
+            assert result.requires_human_review is True
 
     asyncio.run(run())
 
