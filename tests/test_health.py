@@ -2,6 +2,10 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_readiness(client):
+    assert client.get("/ready").json() == {"status": "ok"}
+
+
 def test_query_audited(client):
     response = client.post("/api/query", json={"user_request": "List customers"})
     assert response.status_code == 200

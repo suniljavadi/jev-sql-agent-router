@@ -5,7 +5,7 @@
 The Compose project runs three services:
 
 - `db`: PostgreSQL 16 with persistent `postgres_data`, no published host port.
-- `api`: FastAPI, waits for database health, initializes tables, exposes `/health`, and has egress for configured LLM/Jev providers.
+- `api`: FastAPI, waits for database health, initializes tables, exposes `/health` for liveness and `/ready` for database-backed readiness, and has egress for configured LLM/Jev providers.
 - `ui`: Streamlit, waits for API health and reaches it through the private Compose network.
 
 Both application services use the same Python 3.12 image, run as UID 10001, have a read-only root filesystem, drop Linux capabilities, and use writable temporary filesystems. Published ports bind to `127.0.0.1`; the API and UI do not have TLS by themselves. PostgreSQL resides on an internal network.

@@ -10,7 +10,10 @@ from app.services.security_service import SecurityService
     "CREATE USER bob", "GRANT SELECT ON customers TO bob", "REVOKE SELECT ON customers FROM bob",
     "SELECT * FROM customers; DELETE FROM customers", "SELECT * FROM customers -- comment",
     "WITH x AS (DELETE FROM customers RETURNING *) SELECT * FROM x",
-    "SELECT pg_sleep(1)", "SELECT load_extension('x')"])
+    "SELECT pg_sleep(1)", "SELECT load_extension('x')",
+    "SELECT set_config('statement_timeout', '0', true)",
+    "SELECT nextval('customer_id_seq')", "SELECT pg_read_binary_file('/etc/passwd')",
+    "SELECT pg_terminate_backend(1)", "SELECT dblink_exec('connection', 'DELETE FROM customers')"])
 def test_blocked_sql(settings, sql):
     with pytest.raises(SecurityError):
         SecurityService(settings).validate(sql)

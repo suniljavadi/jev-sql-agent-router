@@ -7,6 +7,27 @@ from app.core.config import Settings
 from app.core.exceptions import SecurityError
 
 
+UNSAFE_FUNCTIONS = {
+    "dblink",
+    "dblink_exec",
+    "lo_export",
+    "lo_import",
+    "load_extension",
+    "nextval",
+    "pg_advisory_lock",
+    "pg_advisory_xact_lock",
+    "pg_cancel_backend",
+    "pg_ls_dir",
+    "pg_read_binary_file",
+    "pg_read_file",
+    "pg_sleep",
+    "pg_stat_file",
+    "pg_terminate_backend",
+    "set_config",
+    "setval",
+}
+
+
 @dataclass(frozen=True)
 class ValidationResult:
     status: str
@@ -42,9 +63,11 @@ class SecurityService:
         for table in statement.find_all(exp.Table):
             if table.name.lower() not in allowed | cte_names or table.db or table.catalog:
                 raise SecurityError("Table is not in SQL_ALLOWED_TABLES")
-        if any(isinstance(node, exp.Func) and
-               (node.name if isinstance(node, exp.Anonymous) else node.sql_name()).lower() in
-               {"pg_sleep", "dblink", "lo_export", "pg_read_file", "load_extension"}
-               for node in statement.walk()):
+        if any(
+            isinstance(node, exp.Func)
+            and (node.name if isinstance(node, exp.Anonymous) else node.sql_name()).lower()
+            in UNSAFE_FUNCTIONS
+            for node in statement.walk()
+        ):
             raise SecurityError("Unsafe SQL function is blocked")
         return ValidationResult("passed_strict" if strict else "passed", sql)
